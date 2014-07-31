@@ -10,3 +10,4 @@ target
 *.log
 *.log.*
 alf_data_dev
+.settings
