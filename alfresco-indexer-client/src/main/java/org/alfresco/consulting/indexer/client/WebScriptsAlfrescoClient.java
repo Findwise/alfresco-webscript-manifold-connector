@@ -6,6 +6,7 @@ import com.google.gson.*;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -177,9 +178,18 @@ public class WebScriptsAlfrescoClient implements AlfrescoClient {
       CloseableHttpClient httpClient = HttpClients.createDefault();
       HttpGet httpGet = createGetRequest(fullUrl);
       CloseableHttpResponse response = httpClient.execute(httpGet);
-      HttpEntity entity = response.getEntity();
-      return CharStreams.toString(new InputStreamReader(entity.getContent(),
-              "UTF-8"));
+      switch (response.getStatusLine().getStatusCode()) {
+        case HttpStatus.SC_OK:
+          HttpEntity entity = response.getEntity();
+          String json = CharStreams.toString(new InputStreamReader(entity.getContent(),
+                  "UTF-8"));
+          response.close();
+          return json;
+        default:
+          response.close();
+          throw new AlfrescoDownException("Could not fetch metadata: "
+                  + response.getStatusLine());
+      }
     } catch (IOException e) {
       throw new AlfrescoDownException(e);
     }
