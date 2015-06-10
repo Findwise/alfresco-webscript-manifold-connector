@@ -186,6 +186,7 @@ public class WebScriptsAlfrescoClient implements AlfrescoClient {
           response.close();
           return json;
         default:
+          logger.debug("failed to fetch: " + response.getStatusLine());
           response.close();
           throw new AlfrescoDownException("Could not fetch metadata: "
                   + response.getStatusLine());
@@ -199,6 +200,9 @@ public class WebScriptsAlfrescoClient implements AlfrescoClient {
   private List<Map<String, String>> extractPropertiesFieldFromMap(
           Map<String, Object> map, String propertiesField) {
     Object properties = map.remove(propertiesField);
+    if (properties == null) {
+      throw new AlfrescoDownException(propertiesField + " was null");
+    }
     if (!(properties instanceof List)) {
       throw new AlfrescoDownException(propertiesField
               + " is not of type List, it is of type " + properties.getClass());
