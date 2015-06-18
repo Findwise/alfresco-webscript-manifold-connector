@@ -26,11 +26,17 @@
     #{storeIdentifier}           as identifier,
     qname.local_name        as type_name,
     ns.uri                  as type_namespace,
-    acl.acl_change_set      as acl_changeset_id
+    acl.acl_change_set      as acl_changeset_id,
+    mime.mimetype_str   as mimetype
     from alf_node node
     left outer join alf_access_control_list acl on node.acl_id = acl.id
     left outer join alf_qname qname on node.type_qname_id = qname.id
     left outer join alf_namespace ns on qname.ns_id = ns.id
+    
+    left outer join alf_node_properties np on np.node_id = node.id
+    left outer join alf_content_data cd on cd.id = np.long_value
+    left outer join alf_mimetype mime on mime.id = cd.content_mimetype_id
+    
     where
     <if test="allowedTypes != null">
       ('{' || ns.uri || '}' || qname.local_name) in
@@ -40,7 +46,9 @@
     </if>
     node.store_id = #{storeId} and
     acl.acl_change_set &gt; #{minId} and
-    acl.acl_change_set &lt;= #{maxId}
+    acl.acl_change_set &lt;= #{maxId} and
+    (np.actual_type_n = 3 or np.actual_type_n = 21) and
+    mime.mimetype_str != 'text/xml'
     order by
     acl.acl_change_set ASC
   </select>
@@ -60,10 +68,16 @@
     #{storeIdentifier}           as identifier,
     qname.local_name        as type_name,
     ns.uri                  as type_namespace,
-    node.transaction_id     as txn_id
+    node.transaction_id     as txn_id,
+    mime.mimetype_str   as mimetype
     from alf_node node
     left outer join alf_qname qname on node.type_qname_id = qname.id
     left outer join alf_namespace ns on qname.ns_id = ns.id
+    
+    left outer join alf_node_properties np on np.node_id = node.id
+    left outer join alf_content_data cd on cd.id = np.long_value
+    left outer join alf_mimetype mime on mime.id = cd.content_mimetype_id
+    
     where
     <if test="allowedTypes != null">
       ('{' || ns.uri || '}' || qname.local_name) in
@@ -72,7 +86,9 @@
       </foreach> and
     </if>
     node.transaction_id &gt; #{minId} and
-    node.transaction_id &lt;= #{maxId}
+    node.transaction_id &lt;= #{maxId} and
+    (np.actual_type_n = 3 or np.actual_type_n = 21) and
+    mime.mimetype_str != 'text/xml'
     order by
     node.transaction_id ASC
   </select>

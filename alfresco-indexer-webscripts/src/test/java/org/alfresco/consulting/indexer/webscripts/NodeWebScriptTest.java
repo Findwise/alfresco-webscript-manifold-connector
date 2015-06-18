@@ -1,21 +1,24 @@
 package org.alfresco.consulting.indexer.webscripts;
 
+import org.alfresco.model.ContentModel;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.web.scripts.BaseWebScriptTest;
+import org.alfresco.service.cmr.repository.ContentReader;
+import org.alfresco.service.cmr.repository.ContentService;
 import org.alfresco.service.cmr.repository.NodeRef;
+import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.transaction.TransactionService;
-import org.json.JSONArray;
-import org.springframework.extensions.webscripts.TestWebScriptServer;
-import org.springframework.extensions.webscripts.TestWebScriptServer.Response;
-
-import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.util.ApplicationContextHelper;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.context.ApplicationContext;
+import org.springframework.extensions.webscripts.TestWebScriptServer;
+import org.springframework.extensions.webscripts.TestWebScriptServer.Response;
 
 public class NodeWebScriptTest extends BaseWebScriptTest {
 
@@ -23,6 +26,7 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
     protected NamespaceService namespaceService;
     protected ApplicationContext applicationContext;
     protected TransactionService transactionService;
+    protected ContentService contentService;
 
     private static final String STORE_PROTOCOL = "workspace";
     private static final String STORE_ID = "SpacesStore";
@@ -36,6 +40,7 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
         nodeService = (NodeService) super.getServer().getApplicationContext().getBean("NodeService");
         namespaceService = (NamespaceService) super.getServer().getApplicationContext().getBean("NamespaceService");
         transactionService = (TransactionService) super.getServer().getApplicationContext().getBean("TransactionService");
+        contentService = super.getServer().getApplicationContext().getBean("ContentService", ContentService.class);
     }
 
     @Test
@@ -53,6 +58,10 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
 
         //Find the uuid of a cm:content, not being deleted and that is part of an Alfresco Share site
         JSONArray docs = result.getJSONArray("docs");
+        
+        // make sure that there's no XML documents in the result set
+        assertNoXml(docs);
+        
         NodeRef nodeRef = null;
         for (int i = 0; i < docs.length() - 1; i++) {
             JSONObject doc = docs.getJSONObject(i);
@@ -87,6 +96,29 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
         response = sendRequest(new TestWebScriptServer.GetRequest("/auth/resolve/"), 200);
         resultList = new JSONArray(response.getContentAsString());
         assertAdminAuthResolve(resultList);
+    }
+
+    private void assertNoXml(JSONArray docs) throws JSONException {
+      // make sure that there's no XML documents in the result...
+      for (int i = 0; i < docs.length() - 1; i++) {
+        JSONObject doc = docs.getJSONObject(i);
+        String uuid = doc.getString("uuid");
+        NodeRef document = new NodeRef(STORE_PROTOCOL, STORE_ID, uuid);
+        
+        if (!nodeService.exists(document)) {
+          continue;
+        }
+        
+        ContentReader reader = contentService.getReader(document, ContentModel.PROP_CONTENT);
+        if (reader == null) {
+          continue;
+        }
+        
+        String mimetype = reader.getMimetype();
+        if ("text/xml".equalsIgnoreCase(mimetype)) {
+          fail("There shouldn't be any XML files in the result set!");
+        }
+      }        
     }
 
     private void assertAdminAuthResolve(JSONArray resultList) throws Exception {
