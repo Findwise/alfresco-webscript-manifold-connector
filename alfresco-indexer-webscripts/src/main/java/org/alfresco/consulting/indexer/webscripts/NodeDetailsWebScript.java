@@ -12,20 +12,28 @@ import java.util.Map;
 import java.util.Set;
 
 import org.alfresco.model.ContentModel;
+import org.alfresco.model.ForumModel;
 import org.alfresco.repo.domain.node.NodeDAO;
 import org.alfresco.repo.domain.permissions.Acl;
 import org.alfresco.repo.domain.permissions.AclDAO;
 import org.alfresco.repo.security.permissions.AccessControlEntry;
 import org.alfresco.service.cmr.dictionary.DictionaryService;
+import org.alfresco.service.cmr.rating.RatingService;
+import org.alfresco.service.cmr.repository.ChildAssociationRef;
+import org.alfresco.service.cmr.repository.ContentReader;
+import org.alfresco.service.cmr.repository.ContentService;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.Path;
 import org.alfresco.service.cmr.security.AccessStatus;
+import org.alfresco.service.cmr.tagging.TaggingService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.util.Pair;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.simple.JSONObject;
 import org.springframework.extensions.webscripts.Cache;
 import org.springframework.extensions.webscripts.DeclarativeWebScript;
 import org.springframework.extensions.webscripts.Status;
@@ -145,6 +153,12 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
         uuid);
     model.put("previewUrlPath", previewUrlPath);
 
+    model.put("tags", taggingService.getTags(nodeRef));
+    
+    int likes = ratingService.getRatingsCount(nodeRef, "likesRatingScheme");
+    model.put("likes", likes);
+    
+    model.put("comments", getComments(nodeRef));
 
     return model;
   }
@@ -216,12 +230,47 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
       return inheritedAcls;
     }
   }
+  
+  private List<String> getComments(NodeRef node) {
+    List<String> comments = new ArrayList<String>();
+    
+    for (ChildAssociationRef child : nodeService.getChildAssocs(node)) {
+      if (ForumModel.ASSOC_DISCUSSION.isMatch(child.getTypeQName())) {
+        List<ChildAssociationRef> topics = nodeService.getChildAssocs(child.getChildRef());
+        
+        for (ChildAssociationRef topic : topics) {
+          QName topicType = nodeService.getType(topic.getChildRef());
+          
+          if (ForumModel.TYPE_TOPIC.isMatch(topicType)) {
+            List<ChildAssociationRef> posts = nodeService.getChildAssocs(topic.getChildRef());
+
+            for (ChildAssociationRef post : posts) {
+              NodeRef postNode = post.getChildRef();
+              
+              ContentReader reader = contentService.getReader(postNode, ContentModel.PROP_CONTENT);
+              
+              String content = reader.getContentString();
+              content = StringEscapeUtils.unescapeHtml(content);
+              content = JSONObject.escape(content);
+              
+              comments.add(content);
+            }
+          }
+        }
+      }
+    }
+    
+    return comments;
+  }
 
   private DictionaryService dictionaryService;
   private NamespaceService namespaceService;
   private NodeService nodeService;
   private NodeDAO nodeDao;
   private AclDAO aclDao;
+  private TaggingService taggingService;
+  private RatingService ratingService;
+  private ContentService contentService;
   private String contentUrlPrefix;
   private String shareUrlPrefix;
   private String previewUrlPrefix;
@@ -241,6 +290,15 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
   }
   public void setAclDao(AclDAO aclDao) {
     this.aclDao = aclDao;
+  }
+  public void setTaggingService(TaggingService taggingService) {
+    this.taggingService = taggingService;
+  }
+  public void setRatingService(RatingService ratingService) {
+    this.ratingService = ratingService;
+  }
+  public void setContentService(ContentService contentService) {
+    this.contentService = contentService;
   }
 
   public void setContentUrlPrefix(String contentUrlPrefix) {
