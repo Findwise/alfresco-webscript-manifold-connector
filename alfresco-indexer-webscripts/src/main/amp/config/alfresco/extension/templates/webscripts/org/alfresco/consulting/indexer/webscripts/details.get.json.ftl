@@ -19,6 +19,16 @@
   <#if previewUrlPath??>
     "previewUrlPath" : "${previewUrlPrefix + previewUrlPath}",
   </#if>
+  <#if parentNodeRef??>
+  "parent": "${parentNodeRef}",
+  </#if>
+  <#if site??>
+  "site": {
+    "cm:name": "${site["cm:name"]}",
+    "cm:title": "${site["cm:title"]}",
+    "dashboardUrlPath": "${shareUrlPrefix + site["dashboardUrlPath"]}"
+  },
+  </#if>
 
   <#assign propNames = properties?keys>
   "aspects" : [

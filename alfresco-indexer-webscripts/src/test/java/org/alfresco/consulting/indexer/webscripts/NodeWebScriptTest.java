@@ -30,6 +30,7 @@ import org.alfresco.util.GUID;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.ArchiveStreamFactory;
+import org.apache.commons.lang.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -311,5 +312,16 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
           assertNotNull(comment);
           assertTrue(comment.length() > 0);
         }
+        
+        // check that the "parent" property is in the JSON
+        String parent = result.getString("parent");
+        assertTrue(StringUtils.isNotBlank(parent));
+        assertTrue(NodeRef.isNodeRef(parent));
+        
+        // check that the site property and it's properties is in the JSON
+        JSONObject siteJson = result.getJSONObject("site");
+        assertTrue(StringUtils.isNotBlank(siteJson.getString("cm:name")));
+        assertTrue(StringUtils.isNotBlank(siteJson.getString("cm:title")));
+        assertTrue(StringUtils.isNotBlank(siteJson.getString("dashboardUrlPath")));
     }
 }
