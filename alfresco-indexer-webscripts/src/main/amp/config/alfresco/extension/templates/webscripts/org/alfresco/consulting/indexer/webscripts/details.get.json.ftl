@@ -37,6 +37,17 @@
       }
       <#if propName_has_next>,</#if>
     </#list>
-  ]
+  ],
+  "tags": [
+    <#list tags as tag>
+      "${tag}"<#if tag_has_next>,</#if>
+    </#list>
+  ],
+  "comments": [
+    <#list comments as comment>
+    "${comment?replace("<(.|\n)*?>",  "", "r")}"<#if comment_has_next>,</#if>
+    </#list>
+  ],
+  "likes": ${likes?c}
 }
 </#escape>

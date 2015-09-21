@@ -56,6 +56,9 @@
     <property name="nodeService" ref="NodeService"/>
     <property name="nodeDao" ref="nodeDAO"/>
     <property name="aclDao" ref="aclDAO"/>
+    <property name="taggingService" ref="TaggingService" />
+    <property name="ratingService" ref="RatingService" />
+    <property name="contentService" ref="ContentService" />
     <property name="contentUrlPrefix" value="${indexer.content.url.prefix}"/>
     <property name="shareUrlPrefix" value="${indexer.share.url.prefix}"/>
     <property name="previewUrlPrefix" value="${indexer.preview.url.prefix}"/>

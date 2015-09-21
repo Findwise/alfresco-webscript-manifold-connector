@@ -1,16 +1,20 @@
 package org.alfresco.consulting.indexer.webscripts;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.web.scripts.BaseWebScriptTest;
+import org.alfresco.service.cmr.rating.RatingService;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentService;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
+import org.alfresco.service.cmr.tagging.TaggingService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.ApplicationContextHelper;
-import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,20 +31,22 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
     protected ApplicationContext applicationContext;
     protected TransactionService transactionService;
     protected ContentService contentService;
+    protected RatingService ratingService;
+    protected TaggingService taggingService;
 
     private static final String STORE_PROTOCOL = "workspace";
     private static final String STORE_ID = "SpacesStore";
-
-    private static Logger log = Logger.getLogger(NodeWebScriptTest.class);
 
     @BeforeClass
     public void setUp() throws Exception {
         ApplicationContextHelper.setUseLazyLoading(false);
         ApplicationContextHelper.setNoAutoStart(true);
-        nodeService = (NodeService) super.getServer().getApplicationContext().getBean("NodeService");
-        namespaceService = (NamespaceService) super.getServer().getApplicationContext().getBean("NamespaceService");
-        transactionService = (TransactionService) super.getServer().getApplicationContext().getBean("TransactionService");
-        contentService = super.getServer().getApplicationContext().getBean("ContentService", ContentService.class);
+        nodeService = getServer().getApplicationContext().getBean("NodeService", NodeService.class);
+        namespaceService = getServer().getApplicationContext().getBean("NamespaceService", NamespaceService.class);
+        transactionService = getServer().getApplicationContext().getBean("TransactionService", TransactionService.class);
+        contentService = getServer().getApplicationContext().getBean("ContentService", ContentService.class);
+        ratingService = getServer().getApplicationContext().getBean("RatingService", RatingService.class);
+        taggingService = getServer().getApplicationContext().getBean("TaggingService", TaggingService.class);
     }
 
     @Test
@@ -78,6 +84,17 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
                 }
             }
         }
+        
+        // create some tags
+        taggingService.addTag(nodeRef, "tag1");
+        taggingService.addTag(nodeRef, "tag2");
+        
+        // add a like
+        ratingService.applyRating(nodeRef, 1.0f, "likesRatingScheme");
+        
+        // add some comments
+        addComment(nodeRef, "this is the first comment");
+        addComment(nodeRef, "this is the second comment");
 
         //Get (and assert) the uuid details
         String detailsUrl = String.format("/node/details/%s/%s/%s",
@@ -86,6 +103,7 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
                 nodeRef.getId());
         response = sendRequest(new TestWebScriptServer.GetRequest(detailsUrl), 200);
         result = new JSONObject(response.getContentAsString());
+        System.out.println(result.toString());
         assertNodeDetails(result, nodeRef.getId());
 
         //Testing /auth/resolve Webscript
@@ -96,6 +114,17 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
         response = sendRequest(new TestWebScriptServer.GetRequest("/auth/resolve/"), 200);
         resultList = new JSONArray(response.getContentAsString());
         assertAdminAuthResolve(resultList);
+    }
+
+    private void addComment(NodeRef nodeRef, String comment) throws JSONException, IOException, UnsupportedEncodingException {
+      JSONObject json = new JSONObject();
+      json.put("content", comment);
+      json.put("itemTitle", "Foobar");
+      json.put("page", "document-details");
+      json.put("pageParams", "{\"nodeRef\":\"" + nodeRef + "\"}");
+      
+      String addCommentUrl = String.format("/api/node/%s/%s/%s/comments", STORE_PROTOCOL, STORE_ID, nodeRef.getId());
+      sendRequest(new TestWebScriptServer.PostRequest(addCommentUrl, json.toString(), "application/json; charset=utf-8"), 200);
     }
 
     private void assertNoXml(JSONArray docs) throws JSONException {
@@ -197,6 +226,25 @@ public class NodeWebScriptTest extends BaseWebScriptTest {
             assertNotNull(type);
             String value = prop.get("value").toString();
             assertNotNull(value);
+        }
+        
+        JSONArray tags = result.getJSONArray("tags");
+        assertEquals(2, tags.length());
+        for (int x = 0; x < tags.length(); x++) {
+          String tag = tags.getString(x);
+          assertNotNull(tag);
+          assertTrue(tag.length() > 0);
+        }
+        
+        int likes = result.getInt("likes");
+        assertEquals(1, likes);
+        
+        JSONArray comments = result.getJSONArray("comments");
+        assertEquals(2, comments.length());
+        for (int x = 0; x < comments.length(); x++) {
+          String comment = comments.getString(x);
+          assertNotNull(comment);
+          assertTrue(comment.length() > 0);
         }
     }
 }
