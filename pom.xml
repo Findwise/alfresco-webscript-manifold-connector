@@ -22,7 +22,6 @@
       <alfresco.groupId>org.alfresco</alfresco.groupId>
       <alfresco.version>4.2.f</alfresco.version>
       <mcf.version>1.1.1</mcf.version>
-      <!--<mcf.version>1.7-SNAPSHOT</mcf.version>-->
     </properties>
 
     <scm>
@@ -37,10 +36,9 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.0</version>
           <configuration>
-            <source>1.6</source>
-            <target>1.6</target>
+            <source>1.7</source>
+            <target>1.7</target>
           </configuration>
         </plugin>
         <plugin>
@@ -68,8 +66,6 @@
 
     <repositories>
       <repository>
-        <!--<id>alfresco-public</id>-->
-        <!--<url>https://artifacts.alfresco.com/nexus/content/groups/public</url>-->
         <id>alfresco-private</id>
         <url>https://artifacts.alfresco.com/nexus/content/groups/private</url>
       </repository>
