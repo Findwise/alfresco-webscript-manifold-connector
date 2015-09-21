@@ -26,6 +26,7 @@ import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.Path;
 import org.alfresco.service.cmr.security.AccessStatus;
+import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.cmr.tagging.TaggingService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
@@ -105,6 +106,11 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
       List<AccessControlEntry> aces = aclDao.getAccessControlList(acl.getId()).getEntries();
       for(AccessControlEntry ace : aces) {
         if (ace.getAccessStatus().equals(AccessStatus.ALLOWED)) {
+          // ReadPermissions should be skipped as otherwise the ALLOWED will include GROUP_EVERYONE
+          if (ace.getPermission().getName().equals(PermissionService.READ_PERMISSIONS)) {
+            continue;
+          }
+
           if (!readableAuthorities.contains(ace.getAuthority())) {
             readableAuthorities.add(ace.getAuthority());
           }
