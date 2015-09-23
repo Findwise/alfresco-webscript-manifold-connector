@@ -26,6 +26,9 @@ import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.Path;
 import org.alfresco.service.cmr.security.AccessStatus;
+import org.alfresco.service.cmr.security.PermissionService;
+import org.alfresco.service.cmr.site.SiteInfo;
+import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.cmr.tagging.TaggingService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
@@ -105,6 +108,11 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
       List<AccessControlEntry> aces = aclDao.getAccessControlList(acl.getId()).getEntries();
       for(AccessControlEntry ace : aces) {
         if (ace.getAccessStatus().equals(AccessStatus.ALLOWED)) {
+          // ReadPermissions should be skipped as otherwise the ALLOWED will include GROUP_EVERYONE
+          if (ace.getPermission().getName().equals(PermissionService.READ_PERMISSIONS)) {
+            continue;
+          }
+
           if (!readableAuthorities.contains(ace.getAuthority())) {
             readableAuthorities.add(ace.getAuthority());
           }
@@ -122,7 +130,24 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
     model.put("shareUrlPrefix", shareUrlPrefix);
     model.put("thumbnailUrlPrefix", thumbnailUrlPrefix);
     model.put("previewUrlPrefix", previewUrlPrefix);
-
+    
+    // add the parent nodeRef if there's one
+    ChildAssociationRef primaryParent = nodeService.getPrimaryParent(nodeRef);
+    if (primaryParent != null) {
+      model.put("parentNodeRef", primaryParent.getParentRef().toString());
+    }
+    
+    // if the node is in a site, add info about the site
+    SiteInfo siteInfo = siteService.getSite(nodeRef);
+    if (siteInfo != null) {
+      Map<String, String> site = new HashMap<>();
+      site.put("cm:name", siteInfo.getShortName());
+      site.put("cm:title", siteInfo.getTitle());
+      site.put("dashboardUrlPath", String.format("/page/site/%s/dashboard", siteInfo.getShortName()));
+      
+      model.put("site", site);
+    }
+    
     //Calculating the contentUrlPath and adding it only if the contentType is child of cm:content
     boolean isContentAware = isContentAware(nodeRef);
     if (isContentAware) {
@@ -271,6 +296,7 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
   private TaggingService taggingService;
   private RatingService ratingService;
   private ContentService contentService;
+  private SiteService siteService;
   private String contentUrlPrefix;
   private String shareUrlPrefix;
   private String previewUrlPrefix;
@@ -299,6 +325,9 @@ public class NodeDetailsWebScript extends DeclarativeWebScript {
   }
   public void setContentService(ContentService contentService) {
     this.contentService = contentService;
+  }
+  public void setSiteService(SiteService siteService) {
+    this.siteService = siteService;
   }
 
   public void setContentUrlPrefix(String contentUrlPrefix) {
